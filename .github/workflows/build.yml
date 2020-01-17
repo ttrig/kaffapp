@@ -1,0 +1,49 @@
+name: build
+
+on: push
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    name: Tests
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache Composer
+        uses: actions/cache@v1
+        with:
+          path: ~/.composer/cache/files
+          key: dependencies-composer-${{ hashFiles('composer.lock') }}
+
+      - name: Cache NPM
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm
+          key: dependencies-node-${{ hashFiles('package-lock.json') }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 7.4
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-suggest --no-ansi --no-progress
+
+      - name: Install NPM dependencies
+        run: npm install --no-audit --no-optional
+
+      - name: Compile assets
+        run: npm run production
+
+      - name: Create database
+        run: touch database/database.sqlite
+
+      - name: Execute tests
+        run: |
+          vendor/bin/phpcs
+          vendor/bin/phpunit
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
